@@ -1,0 +1,26 @@
+<h1>Stream Profile for <%= streamer %></h1>
+<% if !@streamer.nil? %>
+	<%if  @streamer.activated %>
+		<h3>streamer has activated email notifications!</h3>
+	<% else %>
+		<h3>streamer is not currently verified, you should <a href = 'http://www.twitch.tv/message/compose?to=<%= streamer %>'>message them!</a></h3>
+	<% end %>
+	
+
+	<h3>Streamer's Twitch Channel: <a href = 'http://twitch.tv/<%= streamer %>'>twitch.tv/<%= streamer %></a>
+
+	<h3>streamer subscriptions: <%= @count %></h3>
+
+	<% if @user %>
+		<% if not @user.subscriptions.include? @streamer%>
+			<a href = '<%= streamer %>/subscribe'>subscribe to them!</a>
+		<% else %>
+			<p>you've already registered to this streamer</p>
+		<% end %>
+	<% else %>
+		<a href = "/register">register to receive email updates from this user when it is teh urn</a>
+	<% end %>
+
+<% else %>
+	<h3>I'm sorry, I can't find that user</h3>
+<% end %>

@@ -9,7 +9,7 @@ require './models'
 
 class Server < Sinatra::Application # I'll name it something else later
 	#instantiates DB container
-	#db = Sequel.mysql2('tehurn', :host => 'localhost', :user => Credentials.username, :password => Credentials.password)
+	db = Sequel.mysql2('tehurn', :host => 'localhost', :user => Credentials.username, :password => Credentials.password)
 
 	#allows us to use cookies
 	use Rack::Session::Cookie
@@ -55,12 +55,23 @@ class Server < Sinatra::Application # I'll name it something else later
 	    redirect '/login' unless warden_handler.authenticated?
 	end
 
+
+
+	#actual pages
+
 	get '/' do
-		@streamers = Streamer.select().collect do |a|
-			p a[:user]
-			p "hello"
-		end
-		p @streamers
+		@streams = db["""
+			SELECT stream_profiles.name
+			FROM stream_profiles 
+			INNER JOIN subscribers_subscriptions 
+				ON stream_profiles.id = subscribers_subscriptions.stream_profile_id 
+			INNER JOIN users 
+				ON users.id = subscribers_subscriptions.user_id 
+			GROUP BY stream_profiles.name 
+			ORDER BY COUNT(users.id)
+			LIMIT 10;"""]
+
+		p @streams
 		erb :index
 	end
 
@@ -126,8 +137,21 @@ class Server < Sinatra::Application # I'll name it something else later
 	end
 
 	get '/:streamer' do |streamer|
-		pass if streamer == 'logout'
 		"shows the streamer's twitch.tv and a button to subscribe"
+
+		@streamer = StreamProfile[:name => streamer]
+		if !@streamer.nil?
+			#do logic here to add them to the DB if they exist in Twitch api
+			@count = @streamer.subscribers.count
+		end
+
+		if session[:user_id]
+			@user = User[session[:user_id]]
+		else
+			@user = false
+		end
+
+		erb :streamer, :locals => {:streamer => streamer}
 	end
 
 	get '/:streamer/subscribe' do |streamer|

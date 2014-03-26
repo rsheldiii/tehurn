@@ -7,37 +7,53 @@ require './models'
 
 db = Sequel.mysql2('tehurn', :host => 'localhost', :user => Credentials.username, :password => Credentials.password)
 
+p "creatings users table"
 db.create_table! :users do
 	primary_key :id
-	String      :name
-	String 		:email
+	String      :username, :null => false
+	String 		:email, :null => false
 	String		:password_digest
 	#foreign_key	:streamer_id
 
 	index 		:email
-	index		:name
+	index		:username
 end
 
-db.create_table! :streamers do
+p "creating streamers table"
+db.create_table! :stream_profiles do
 	primary_key :id
+	String 		:name, :null => false
 	foreign_key :user_id
 	boolean 	:activated, :default => false
 end
 
-db.create_table! :streamers_users do
+p "creating subscriber to subscription association table"
+db.create_table! :subscribers_subscriptions do
 	foreign_key :user_id
-	foreign_key :streamer_id
+	foreign_key :stream_profile_id
 end
 
 
 #example content
+p "creating bob"
+bob = User.create(:username => "bob", :email => "bob@bob.bob", :password => "foo",  :password_confirmation => "foo")
 
-bob = User.create(:name => "bob", :email => "bob@bob.bob", :password => "foo",  :password_confirmation => "foo")
-sig_user = User.create(:name => "sig", :email => 'sig@sig.sig', :password => "bar", :password_confirmation => 'bar')
-sig = Streamer.create()
-sig_user.streamer = sig
-#sig.user = sig_user
+p "creating sig user"
+sig_user = User.create(:username => "sig", :email => 'sig@sig.sig', :password => "bar", :password_confirmation => 'bar')
 
+p "creating sig profile"
+sig = StreamProfile.create(:name => "siglemic")
+
+p "sig user methods"
+p sig_user.methods.sort
+
+p "sig profile methods"
+p p sig.methods.sort
+
+p "adding sig profile to sig user"
+sig_user.add_stream_profile sig
+
+p "subscribing bob to sig"
 bob.add_subscription sig
 #sig.add_subscriber bob
 

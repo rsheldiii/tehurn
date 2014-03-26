@@ -4,6 +4,9 @@
 	<h1> Welcome to ThisIsTehUrn.com </h1>
 <% end %>
 
-<% @streamers.each do |streamer|  %>
-	<div><%=streamer%></div>
+<h1>Top Stream Subscriptions:</h1>
+<ul>
+<% @streams.each do |stream|  %>
+	<li><a href = '<%=stream[:name]%>'><%=stream[:name]%></a></li>
 <% end %>
+</ul>
