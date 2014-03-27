@@ -1,0 +1,15 @@
+<nav class="navbar navbar-default" role="navigation">
+  	<div class="navbar-header">
+  		<a class = "navbar-brand">Teh Urn</a>
+  	</div>
+
+  	<div class = "navbar-collapse collapse">
+  		<p class = 'navbar-text navbar-left'><a class = 'navbar-link' href = '/'>Home</a></p>
+  		<p class = 'navbar-text navbar-left'><a class = 'navbar-link' href = '/search'>Search</a></p>
+  		<p class = 'navbar-text navbar-left'><a class = 'navbar-link' href = '/faq'>FAQ</a></p>
+  		<%if @user %>
+  			<p class = 'navbar-text navbar-left'><a class = 'navbar-link' href = '/account'>Account</a></p>
+  		<% end %>
+  		<%= erb :"partials/login" %>
+  	</div>
+</nav>

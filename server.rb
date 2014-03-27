@@ -3,9 +3,10 @@ require 'warden'
 require 'sequel'
 require './credentials'
 require './models'
-require 'openurl'
+require 'open-uri'
 require 'json'
 require 'sinatra/flash'
+include ERB::Util
 
 #https://gist.github.com/nicholaswyoung/557436
 #http://mikeebert.tumblr.com/post/27097231613/wiring-up-warden-sinatra
@@ -60,21 +61,15 @@ class Server < Sinatra::Application # I'll name it something else later
 	    redirect '/login' unless warden.authenticated?
 	end
 
-	def checkOrCreateStreamer(streamer)
-		@streamer = StreamProfile[:name => streamer]
-		if @streamer.nil?
-			channel = JSON.parse(open('https://api.twitch.tv/kraken/channels/'+streamer))
-
-			if !channel["error"] and channel["name"]
-				@streamer = StreamProfile.new(:name => channel["name"])
-				@streamer.save
-			else
-				return false
-			end
+	before do
+		@user = current_user || false;
+		if flash[:error]
+			@error = flash[:error]
 		end
-		@streamer
+		if flash[:success]
+			@success = flash[:success]
+		end
 	end
-
 
 	#actual pages
 
@@ -96,37 +91,6 @@ class Server < Sinatra::Application # I'll name it something else later
 
 	get '/favicon.ico' do end
 
-	get '/account' do
-		check_authentication
-		p session
-		p current_user
-
-		erb :account, :locals => {:user => current_user}
-	end
-
-	get '/account/list' do
-		check_authentication
-		"API call to list all streamers for current session. used by /account"
-	end
-
-	get '/account/details' do
-		check_authentication
-		"API call to list all details of current session"
-	end
-
-	get '/account/details/edit' do
-		check_authentication
-		erb :edit_account
-	end
-
-
-	get '/account/details/edit/email' do
-		check_authentication
-		current_user.email = params['email']
-		current_user.save
-		JSON.generate({'success'=>'success'})
-	end
-
 	get '/search' do
 		erb :search
 	end
@@ -140,23 +104,26 @@ class Server < Sinatra::Application # I'll name it something else later
 		erb :login, :locals =>{ :error => flash[:error]}
 	end
 
-	get "/logout" do
-		check_authentication
-		warden.logout
-		redirect '/'
-	end
-
 	get 'register' do
 		erb :register
 	end
 
-	get '/createuser' do
+	post '/createuser' do
 		if params[:email] and params[:password] and params[:password_confirmation] and params[:username]#todo: there's a better way to do this
-			User.create(*parmas)#TODO: make sure this works
+			User.create(*params)#TODO: make sure this works
+		end
 	end
 
-	get '/verify' do
-		"verification API call that renders either json or html based on some kind of input I havent figured out yet"
+	get '/verify/:code' do |code|
+		user = User[:code => code]
+		if user
+			user.verified = true
+			user.save
+			flash[:success] = "congratulations, your account has been verified! you should now be able to login"
+		else
+			flash[:error] = "I'm sorry, I couldnt find the user assigned to that code"
+		end
+		redirect '/'
 	end
 
 	post "/session" do
@@ -174,48 +141,8 @@ class Server < Sinatra::Application # I'll name it something else later
 		redirect "/login"
 	end
 
-	get '/:streamer' do |streamer|
-
-		@streamer = checkOrCreateStreamer(streamer)
-
-		if @streamer
-			@count = @streamer.subscribers.count
-		end
-
-		p current_user.subscriptions
-		p @streamer
-		p current_user.subscriptions.include? @streamer
-
-		erb :streamer, :locals => {:streamer => streamer, :user => current_user}
-	end
-
-	get '/:streamer/subscribe' do |streamer|
-		check_authentication
-		streamer = StreamProfile[:name => streamer]
-		if !streamer.nil?
-			current_user.add_subscription streamer
-			current_user.save
-			JSON.generate({'success'=>'success'})
-		else
-			JSON.generate({'error'=>'streamer does not exist'})
-		end
-	end
-
-	get '/:streamer/unsubscribe' do |streamer|
-		check_authentication
-		streamer = StreamProfile[:name => streamer]
-		if !streamer.nil?
-			current_user.remove_subscription streamer
-			current_user.save
-			JSON.generate({'success'=>'success'})
-		else
-			JSON.generate({'error'=>'streamer does not exist'})
-		end
-	end
-
-	get ':streamer/pm' do |streamer|
-		redirect "http://www.twitch.tv/message/compose?to="+streamer
-	end
+	require './routes/account'
+	require './routes/streamer'
 
 	run!
 end

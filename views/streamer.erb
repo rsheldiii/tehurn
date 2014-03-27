@@ -1,4 +1,4 @@
-<h1>Stream Profile for <%= streamer %></h1>
+<h1>Stream Profile for <%= h streamer %></h1>
 <% if @streamer %>
 	<%if  @streamer.activated %>
 		<h3>streamer has activated email notifications!</h3>
@@ -11,14 +11,14 @@
 
 	<h3>streamer subscriptions: <%= @count %></h3>
 
-	<% if user %>
-		<% if not user.subscriptions.include? @streamer%>
+	<% if @user %>
+		<% if not @user.subscriptions.include? @streamer%>
 			<a href = '<%= streamer %>/subscribe'>subscribe to them!</a>
 		<% else %>
 			<p>you've already registered to receive emails from this streamer</p>
 		<% end %>
 	<% else %>
-		<a href = "/register">register to receive email updates from this user when it is teh urn</a>
+		<a href = "/register">register to receive email updates from this @user when it is teh urn</a>
 	<% end %>
 
 <% else %>

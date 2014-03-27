@@ -13,6 +13,7 @@ db.create_table! :users do
 	String      :username, :null => false
 	String 		:email, :null => false
 	String		:password_digest
+	boolean		:verified, :default => false
 	#foreign_key	:streamer_id
 
 	index 		:email

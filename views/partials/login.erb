@@ -1,0 +1,9 @@
+<%if @user %>
+	<div class = 'loginPane navbar-right'>
+		<p class = 'navbar-text'>Hi <%= @user.username %>!</p> <a class = 'btn btn-default navbar-btn' href = '/account/logout'>logout</a>
+	</div>
+<% else %>
+	<div class = 'loginPane navbar-right'>
+		<a class = 'btn btn-default navbar-btn' href = '/login'>login</a> or <a class = 'btn btn-default navbar-btn' href = '/register'>register</a>
+	</div>
+<% end %>
