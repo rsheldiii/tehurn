@@ -6,4 +6,4 @@ require './models'
 db = Sequel.mysql2('tehurn', :host => 'localhost', :user => Credentials.username, :password => Credentials.password)
 
 
-p StreamProfile[3]
+p User[1].methods.sort

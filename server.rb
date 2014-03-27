@@ -3,14 +3,18 @@ require 'warden'
 require 'sequel'
 require './credentials'
 require './models'
+require 'openurl'
+require 'json'
 
 #https://gist.github.com/nicholaswyoung/557436
 #http://mikeebert.tumblr.com/post/27097231613/wiring-up-warden-sinatra
+db = Sequel.mysql2('tehurn', :host => 'localhost', :user => Credentials.username, :password => Credentials.password)
+
 
 class Server < Sinatra::Application # I'll name it something else later
 	#instantiates DB container
+	
 	db = Sequel.mysql2('tehurn', :host => 'localhost', :user => Credentials.username, :password => Credentials.password)
-
 	#allows us to use cookies
 	use Rack::Session::Cookie
 
@@ -19,7 +23,7 @@ class Server < Sinatra::Application # I'll name it something else later
 	  manager.default_strategies :password
 	  manager.failure_app = Server
 	  manager.serialize_into_session {|user| user.id}
-	  manager.serialize_from_session {|id| db[:users].where(:id => id)}
+	  manager.serialize_from_session {|id| User[id]}
 	end
 
 	#apparently warden is picky so this is a requirement
@@ -34,7 +38,8 @@ class Server < Sinatra::Application # I'll name it something else later
 	  end
 	 
 	  def authenticate!
-	    user = db[:users].where(:email => params["email"])
+	  	db = Sequel.mysql2('tehurn', :host => 'localhost', :user => Credentials.username, :password => Credentials.password)#TODO: get rid of this
+	    user = User[:email => params["email"]]
 	    if user && user.authenticate(params["password"])
 	      success!(user)
 	    else
@@ -43,18 +48,33 @@ class Server < Sinatra::Application # I'll name it something else later
 	  end
 	end
 
-	def warden_handler
+	def warden
 	    env['warden']
 	end
 
 	def current_user
-	    warden_handler.user
+	    warden.user
 	end
 
 	def check_authentication
-	    redirect '/login' unless warden_handler.authenticated?
+	    redirect '/login' unless warden.authenticated?
 	end
 
+	def checkOrCreateStreamer(streamer)
+		@streamer = StreamProfile[:name => streamer]
+		if @streamer.nil?
+			channel = JSON.parse(open('https://api.twitch.tv/kraken/channels/'+streamer))
+
+			if !channel["error"] and channel["name"]
+				newstream = StreamProfile.new(:name => channel["name"])
+				newstream.save
+			else
+				return false
+			end
+		else
+			streamer
+		end
+	end
 
 
 	#actual pages
@@ -75,26 +95,34 @@ class Server < Sinatra::Application # I'll name it something else later
 		erb :index
 	end
 
+	get '/favicon.ico' do end
+
 	get '/account' do
 		check_authentication
-		session
-		""
+		p session
+		p current_user
+
+		erb :account, :locals => {:user => current_user}
 	end
 
 	get '/account/list' do
+		check_authentication
 		"API call to list all streamers for current session. used by /account"
 	end
 
 	get '/account/details' do
+		check_authentication
 		"API call to list all details of current session"
 	end
 
 	get '/account/details/edit' do
+		check_authentication
 		"boilerplate page to list all details and provide buttons to edit them. currently only email"
 	end
 
 
 	get '/account/details/edit/email' do
+		check_authentication
 		"POST or is it PUT? API call to edit email attribute to whatever is in $_POST[email]"
 	end
 
@@ -107,12 +135,13 @@ class Server < Sinatra::Application # I'll name it something else later
 	end
 
 	get '/login' do
-		"login page"
+		erb :login
 	end
 
 	get "/logout" do
-	  warden_handler.logout
-	  redirect '/'
+		check_authentication
+		warden.logout
+		redirect '/'
 	end
 
 	get '/register' do
@@ -124,24 +153,24 @@ class Server < Sinatra::Application # I'll name it something else later
 	end
 
 	post "/session" do
-	  warden_handler.authenticate!
-	  if warden_handler.authenticated?
-	      redirect "/account" 
+	  warden.authenticate!
+	  if warden.authenticated?
+	    redirect "/account" 
 	  else
-	    redirect "/"
+	    redirect "/login"
 	  end
 	end
 
 	post "/unauthenticated" do
-		redirect "/"
+		redirect "/login"
 	end
 
 	get '/:streamer' do |streamer|
 		"shows the streamer's twitch.tv and a button to subscribe"
 
-		@streamer = StreamProfile[:name => streamer]
-		if !@streamer.nil?
-			#do logic here to add them to the DB if they exist in Twitch api
+		@streamer = checkOrCreateStreamer(streamer)
+
+		if @streamer
 			@count = @streamer.subscribers.count
 		end
 
@@ -155,15 +184,31 @@ class Server < Sinatra::Application # I'll name it something else later
 	end
 
 	get '/:streamer/subscribe' do |streamer|
-		"API call to sign up to a certain streamer"
+		check_authentication
+		streamer = StreamProfile[:name => streamer]
+		if !streamer.nil?
+			current_user.add_subscription streamer
+			current_user.save
+			JSON.generate({'success'=>'success'})
+		else
+			JSON.generate({'error'=>'streamer does not exist'})
+		end
 	end
 
 	get '/:streamer/unsubscribe' do |streamer|
-		"API call to unsubscribe to streamer"
+		check_authentication
+		streamer = StreamProfile[:name => streamer]
+		if !streamer.nil?
+			current_user.remove_subscription streamer
+			current_user.save
+			JSON.generate({'success'=>'success'})
+		else
+			JSON.generate({'error'=>'streamer does not exist'})
+		end
 	end
 
 	get ':streamer/pm' do |streamer|
-		"redirects to link to pm streamer if Twitch has that functionality"
+		redirect "http://www.twitch.tv/message/compose?to="+streamer
 	end
 
 	run!

@@ -1,4 +1,4 @@
-require 'sequel'
+	require 'sequel'
 require './credentials'
 require 'mysql2'
 require './models'
@@ -36,7 +36,7 @@ end
 
 #example content
 p "creating bob"
-bob = User.create(:username => "bob", :email => "bob@bob.bob", :password => "foo",  :password_confirmation => "foo")
+bob = User.create(:username => "bob", :email => "rsheldiii@gmail.com", :password => "foo",  :password_confirmation => "foo")
 
 p "creating sig user"
 sig_user = User.create(:username => "sig", :email => 'sig@sig.sig', :password => "bar", :password_confirmation => 'bar')
