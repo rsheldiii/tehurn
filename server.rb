@@ -5,11 +5,10 @@ require './credentials'
 require './models'
 require 'openurl'
 require 'json'
+require 'sinatra/flash'
 
 #https://gist.github.com/nicholaswyoung/557436
 #http://mikeebert.tumblr.com/post/27097231613/wiring-up-warden-sinatra
-db = Sequel.mysql2('tehurn', :host => 'localhost', :user => Credentials.username, :password => Credentials.password)
-
 
 class Server < Sinatra::Application # I'll name it something else later
 	#instantiates DB container
@@ -17,6 +16,7 @@ class Server < Sinatra::Application # I'll name it something else later
 	db = Sequel.mysql2('tehurn', :host => 'localhost', :user => Credentials.username, :password => Credentials.password)
 	#allows us to use cookies
 	use Rack::Session::Cookie
+	register Sinatra::Flash
 
 	#configures Warden as middleware
 	use Warden::Manager do |manager|
@@ -66,14 +66,13 @@ class Server < Sinatra::Application # I'll name it something else later
 			channel = JSON.parse(open('https://api.twitch.tv/kraken/channels/'+streamer))
 
 			if !channel["error"] and channel["name"]
-				newstream = StreamProfile.new(:name => channel["name"])
-				newstream.save
+				@streamer = StreamProfile.new(:name => channel["name"])
+				@streamer.save
 			else
 				return false
 			end
-		else
-			streamer
 		end
+		@streamer
 	end
 
 
@@ -117,17 +116,19 @@ class Server < Sinatra::Application # I'll name it something else later
 
 	get '/account/details/edit' do
 		check_authentication
-		"boilerplate page to list all details and provide buttons to edit them. currently only email"
+		erb :edit_account
 	end
 
 
 	get '/account/details/edit/email' do
 		check_authentication
-		"POST or is it PUT? API call to edit email attribute to whatever is in $_POST[email]"
+		current_user.email = params['email']
+		current_user.save
+		JSON.generate({'success'=>'success'})
 	end
 
 	get '/search' do
-		"boilerplate, search page with no actual content"
+		erb :search
 	end
 
 	get '/search/:q' do |q|
@@ -135,7 +136,8 @@ class Server < Sinatra::Application # I'll name it something else later
 	end
 
 	get '/login' do
-		erb :login
+		p flash[:error]
+		erb :login, :locals =>{ :error => flash[:error]}
 	end
 
 	get "/logout" do
@@ -144,8 +146,13 @@ class Server < Sinatra::Application # I'll name it something else later
 		redirect '/'
 	end
 
-	get '/register' do
-		"registration API call. creates unverified account"
+	get 'register' do
+		erb :register
+	end
+
+	get '/createuser' do
+		if params[:email] and params[:password] and params[:password_confirmation] and params[:username]#todo: there's a better way to do this
+			User.create(*parmas)#TODO: make sure this works
 	end
 
 	get '/verify' do
@@ -157,16 +164,17 @@ class Server < Sinatra::Application # I'll name it something else later
 	  if warden.authenticated?
 	    redirect "/account" 
 	  else
+	  	flash[:error] = "dead code wth"
 	    redirect "/login"
 	  end
 	end
 
 	post "/unauthenticated" do
+		flash[:error] = "you are not authenticated"
 		redirect "/login"
 	end
 
 	get '/:streamer' do |streamer|
-		"shows the streamer's twitch.tv and a button to subscribe"
 
 		@streamer = checkOrCreateStreamer(streamer)
 
@@ -174,13 +182,11 @@ class Server < Sinatra::Application # I'll name it something else later
 			@count = @streamer.subscribers.count
 		end
 
-		if session[:user_id]
-			@user = User[session[:user_id]]
-		else
-			@user = false
-		end
+		p current_user.subscriptions
+		p @streamer
+		p current_user.subscriptions.include? @streamer
 
-		erb :streamer, :locals => {:streamer => streamer}
+		erb :streamer, :locals => {:streamer => streamer, :user => current_user}
 	end
 
 	get '/:streamer/subscribe' do |streamer|
