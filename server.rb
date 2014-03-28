@@ -89,14 +89,10 @@ class Server < Sinatra::Application # I'll name it something else later
 		erb :index
 	end
 
-	get '/favicon.ico' do end
-
-	get '/search' do
-		erb :search
-	end
+	get '/favicon.ico' do end#fuckin thing
 
 	get '/search/:q' do |q|
-		"api to search for streamers names via q. regex?"
+		JSON.generate(db['SELECT name FROM streamers WHERE name LIKE "%?%"',q.to_s].all)#to_s necessary?
 	end
 
 	get '/login' do
